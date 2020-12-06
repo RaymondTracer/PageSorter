@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "PageSorter": {
+      "commandName": "Project",
+      "commandLineArgs": ".\\testing\\PageSorter"
+    }
+  }
+}
