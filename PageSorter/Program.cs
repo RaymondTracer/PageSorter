@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Net;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -18,7 +19,7 @@ namespace PageSorter
 
         static void Main(string[] args)
         {
-            Console.Title = "Page Sorter v1.1.1 by Raymond Tracer";
+            Console.Title = $"Page Sorter v{Assembly.GetEntryAssembly().GetName().Version} by Raymond Tracer";
 
             if (args.Length > 0 && args[0] != null)
             {
@@ -69,6 +70,7 @@ namespace PageSorter
                 sw.Stop();
 
                 while (processingProgress) { }
+                Console.SetCursorPosition(0, cursorTop);
                 Console.WriteLine();
                 Console.WriteLine($"Download Competed! Took {sw.Elapsed.TotalSeconds} seconds.");
                 finishedDownloading = true;
@@ -185,7 +187,7 @@ namespace PageSorter
             try
             {
 
-                using Stream stream = new FileStream("1.docx", FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                using Stream stream = new FileStream(targetFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
                 return false;
             }
             catch
