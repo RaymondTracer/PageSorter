@@ -18,7 +18,7 @@ namespace PageSorter
 
         static void Main(string[] args)
         {
-            Console.Title = "Page Sorter v1.1 by Raymond Tracer";
+            Console.Title = "Page Sorter v1.1.1 by Raymond Tracer";
 
             if (args.Length > 0 && args[0] != null)
             {
@@ -101,13 +101,14 @@ namespace PageSorter
             java.Start();
             java.WaitForExit();
 
-
             Console.WriteLine();
             Console.WriteLine("Moving PaperMC server jar.");
 
             if (FileInUse($@"{rootDirectory}\..\paperclip.jar"))
             {
                 Console.WriteLine("Old server jar in use, waiting for file to be freed.");
+
+                while (FileInUse($@"{rootDirectory}\..\paperclip.jar")) { }
             }
 
             foreach (string file in Directory.GetFiles(cacheDirectory))
