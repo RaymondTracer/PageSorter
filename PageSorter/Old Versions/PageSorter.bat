@@ -7,17 +7,7 @@ set DownloadURL=https://papermc.io/ci/job/Paper-1.16/lastSuccessfulBuild/artifac
 set OutputFilename=paperclip.jar
 set /a UsePowerShell = 1
 
-if exist %OutputFilename% (
-  echo Found "%OutputFilename%".
-
-  if exist work (
-    rmdir /s /q work
-  )
-  mkdir work
-  
-  move paperclip.jar work > nul
-  goto executeJava
-)
+if exist %OutputFilename% goto loop
 
 :powershellCheck
 echo Checking PowerShell.
@@ -51,16 +41,9 @@ if %UsePowerShell% EQU 1 (
  echo Downloading "%OutputFilename%"...
  powershell -Command "(New-Object Net.WebClient).DownloadFile('%DownloadURL%', '%OutputFilename%')"
 ) else (
-  echo Downloading "%OutputFilename%"...
-  bitsadmin /transfer PaperclipDownload /download /priority normal %DownloadURL% %cd%\%OutputFilename%
+ echo Downloading "%OutputFilename%"...
+ bitsadmin /transfer PaperclipDownload /download /priority normal %DownloadURL% %cd%\%OutputFilename%
 )
-
-:preLoop
-if exist work (
-  rmdir /s /q work
-)
-
-mkdir work
 
 echo Checking for "%OutputFilename%".
 
@@ -69,9 +52,7 @@ set /a MessageDisplayed = 0
 :loop
 if exist %OutputFilename% (
   echo Found "%OutputFilename%".
-  move paperclip.jar work > nul
-
-  goto executeJava
+  goto foundFile
 ) else (
   if MessageDisplayed EQU 0 (
     set /a MessageDisplayed = 1
@@ -81,6 +62,12 @@ if exist %OutputFilename% (
   )
 )
 goto loop
+
+:foundFile
+rmdir /s /q work >nul 2> nul
+mkdir work
+
+move paperclip.jar work > nul
 
 :executeJava
 cd work
@@ -93,7 +80,7 @@ if %errorlevel% EQU 1 (
   echo %OutputFilename% failed to execute, restarting script.
 
   del /f /q %OutputFilename%
-  cd %cdCopy%\..
+  cd ..
   goto powershellCheck
 )
 
