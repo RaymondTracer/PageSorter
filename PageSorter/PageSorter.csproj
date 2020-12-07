@@ -3,11 +3,12 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net5.0</TargetFramework>
-    <AssemblyVersion>1.1.2.0</AssemblyVersion>
-    <Version>1.1.3</Version>
+    <AssemblyVersion>1.1.4.0</AssemblyVersion>
+    <Version>1.1.4</Version>
     <Authors>Raymond Tracer</Authors>
     <Product>Page Sorter</Product>
     <Description>Automatically updates PaperMC.</Description>
+    <FileVersion>1.1.4.0</FileVersion>
   </PropertyGroup>
 
 </Project>
