@@ -146,16 +146,16 @@ namespace PageSorter
                 processingProgress = true;
                 string spaces = progreesPercentage < 10 ? "   " : progreesPercentage < 100 ? "  " : " ";
 
-                ulong progFill = (ulong)Math.Floor(progreesPercentage / 5d);
-                string progFillString = "-".Repeat(progFill);
+                int progFill = (int)Math.Floor(progreesPercentage / 5d);
+                string progFillString = new string('-', progFill);
 
-                ulong progEmpty = 20 - progFill;
-                string progEmptyString = progEmpty > 0 ? " ".Repeat(progEmpty) : "";
+                int progEmpty = 20 - progFill;
+                string progEmptyString = new string(' ', progEmpty);
 
                 Console.SetCursorPosition(0, cursorTop - 3);
-                Console.WriteLine($"{progreesPercentage}%{spaces}[{progFillString}{progEmptyString}]    ");
-                Console.WriteLine($"{bytesRec / 1000d:N}KB/{fileSize / 1000d:N}KB");
-                Console.WriteLine($"{bytesRec / 1000d / sw.Elapsed.TotalSeconds:N}KB/s");
+                Console.WriteLine($"{progreesPercentage}%{spaces}[{progFillString}{progEmptyString}]        ");
+                Console.WriteLine($"{bytesRec / 1000d:N}KB/{fileSize / 1000d:N}KB        ");
+                Console.WriteLine($"{bytesRec / 1000d / sw.Elapsed.TotalSeconds:N}KB/s        ");
                 processingProgress = false;
             }
         }
@@ -186,7 +186,6 @@ namespace PageSorter
         {
             try
             {
-
                 using Stream stream = new FileStream(targetFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
                 return false;
             }
@@ -195,21 +194,6 @@ namespace PageSorter
             }
 
             return true;
-        }
-    }
-
-    public static class Extentions
-    {
-        public static string Repeat(this string input, ulong amount)
-        {
-            string temp = input;
-
-            for (uint i = 1; i < amount; i++)
-            {
-                temp += input;
-            }
-
-            return temp;
         }
     }
 }
