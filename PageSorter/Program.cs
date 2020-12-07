@@ -126,9 +126,9 @@ namespace PageSorter
             Console.ReadKey();
         }
 
-        static bool finishedDownloading = false;
+        volatile static bool finishedDownloading = false;
 
-        static bool processingProgress = false;
+        volatile static bool processingProgress = false;
         static int progreesPercentage = -1;
         static long bytesRec = -1;
 
