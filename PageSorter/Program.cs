@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -17,9 +19,11 @@ namespace PageSorter
         static int cursorTop = 0;
         static long fileSize = 0;
 
+        static string version => string.Join(".", Assembly.GetEntryAssembly().GetName().Version.ToString().Split('.').TakeWhile(s => { return Convert.ToInt16(s) > 0; }));
+
         static void Main(string[] args)
         {
-            Console.Title = $"Page Sorter v{Assembly.GetEntryAssembly().GetName().Version} by Raymond Tracer";
+            Console.Title = $"Page Sorter v{version} by Raymond Tracer";
 
             if (args.Length > 0 && args[0] != null)
             {
