@@ -19,11 +19,39 @@ namespace PageSorter
         static int cursorTop = 0;
         static long fileSize = 0;
 
-        static string version => string.Join(".", Assembly.GetEntryAssembly().GetName().Version.ToString().Split('.').TakeWhile(s => { return Convert.ToInt16(s) > 0; }));
+        static string Version
+        {
+            get
+            {
+                string[] assemblyVersionSplit = Assembly.GetEntryAssembly().GetName().Version.ToString().Split('.');
+                string temp = assemblyVersionSplit[0];
+
+                if (Convert.ToInt16(assemblyVersionSplit[3]) > 0)
+                {
+                    temp = Assembly.GetEntryAssembly().GetName().Version.ToString();
+                }
+                else if (Convert.ToInt16(assemblyVersionSplit[2]) > 0)
+                {
+                    temp = $"{assemblyVersionSplit[0]}.{assemblyVersionSplit[1]}.{assemblyVersionSplit[2]}";
+                }
+                else if (Convert.ToInt16(assemblyVersionSplit[1]) > 0)
+                {
+                    temp = $"{assemblyVersionSplit[0]}.{assemblyVersionSplit[1]}";
+                }
+
+                return temp;
+            }
+        }
 
         static void Main(string[] args)
         {
-            Console.Title = $"Page Sorter v{version} by Raymond Tracer";
+            Console.Title = $"Page Sorter v{Version} by Raymond Tracer";
+
+#if DEBUG
+            Console.WriteLine("[DEBUG MODE ENABLED]");
+            Console.WriteLine("Press any key to start...");
+            Console.ReadKey();
+#endif
 
             if (args.Length > 0 && args[0] != null)
             {
