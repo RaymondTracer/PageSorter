@@ -8,8 +8,13 @@ namespace PageSorter
 {
     class JsonClasses
     {
+        public class Error
+        {
+            public string error { get; set; }
+        }
+
         // --
-        public class ProjectInfo
+        public class ProjectInfo : Error
         {
             public string project_id { get; set; }
             public string project_name { get; set; }
@@ -18,7 +23,7 @@ namespace PageSorter
         }
 
         // --
-        public class VersionInfo
+        public class VersionInfo : Error
         {
             public string project_id { get; set; }
             public string project_name { get; set; }
@@ -27,7 +32,7 @@ namespace PageSorter
         }
 
         // --
-        public class VersionBuilds
+        public class VersionBuilds : Error
         {
             public string project_id { get; set; }
             public string project_name { get; set; }
@@ -55,6 +60,5 @@ namespace PageSorter
             public string summary { get; set; }
             public string message { get; set; }
         }
-
     }
 }
