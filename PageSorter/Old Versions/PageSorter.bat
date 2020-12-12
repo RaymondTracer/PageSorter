@@ -36,12 +36,11 @@ for %%i in (powershell.exe) do (
 
 :afterPowershellCheck
 echo.
+echo Downloading "%OutputFilename%"...
 
 if %UsePowerShell% EQU 1 (
- echo Downloading "%OutputFilename%"...
  powershell -Command "(New-Object Net.WebClient).DownloadFile('%DownloadURL%', '%OutputFilename%')"
 ) else (
- echo Downloading "%OutputFilename%"...
  bitsadmin /transfer PaperclipDownload /download /priority normal %DownloadURL% %cd%\%OutputFilename%
 )
 
@@ -56,9 +55,10 @@ if exist %OutputFilename% (
 ) else (
   if MessageDisplayed EQU 0 (
     set /a MessageDisplayed = 1
-    echo "%OutputFilename%" not found, waiting for fileName...
-    echo This means you'll have to download the fileName yourself
-    echo and put it in the same directory this batch fileName is in.
+
+    echo "%OutputFilename%" not found, waiting for file...
+    echo This means you'll have to download the file yourself
+    echo and put it in the same directory this batch file is in.
   )
 )
 goto loop
