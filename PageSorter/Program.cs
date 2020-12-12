@@ -199,7 +199,7 @@ namespace PageSorter
                 }
 
                 swProgram.Start();
-                oldBuild = versionInfo.builds[^1];
+                oldBuild = Math.Max(versionInfo.builds[0], versionInfo.builds[^1]);
             }
             else if (Settings.Default.LastBuild > versionInfo.builds[^1])
             {
@@ -288,10 +288,12 @@ namespace PageSorter
             {
                 File.Move($@"{cacheDirectory}\patched_{Settings.Default.LastVersion}.jar", $@"{rootDirectory}\..\paperclip.jar", true);
 
-                if (Settings.Default.LastBuild - oldBuild < 1)
+                if (Settings.Default.LastBuild - oldBuild == 0)
                 {
                     oldBuild -= 5;
                 }
+
+                oldBuild = Math.Max(versionInfo.builds[0], oldBuild);
 
                 Console.WriteLine($"Getting changelog for builds {oldBuild} to {Settings.Default.LastBuild}");
 
@@ -299,35 +301,40 @@ namespace PageSorter
                 Dictionary<int, LinkedList<string>> buildLines = new Dictionary<int, LinkedList<string>>();
                 LinkedList<string> lines = new LinkedList<string>();
 
-                for (int i = oldBuild - 5; i < oldBuild; i++)
+                if (oldBuild > versionInfo.builds[0])
                 {
-#if DEBUG
-                    Console.WriteLine($"[- {i} -]");
+                    int r = oldBuild - versionInfo.builds[0];
 
-                    int commitCount = 0;
-                    int duplicateCommits = 0;
-#endif
-                    JsonClasses.VersionBuilds temp = JsonSerializer.Deserialize<JsonClasses.VersionBuilds>(wc.DownloadString($"https://papermc.io/api/v2/projects/paper/versions/{projectInfo.versions[^1]}/builds/{i}"));
-                    foreach (JsonClasses.Change change in temp.changes)
+                    for (int i = oldBuild - r; i < oldBuild; i++)
                     {
 #if DEBUG
-                        commitCount++;
+                        Console.WriteLine($"[- {i} -]");
+
+                        int commitCount = 0;
+                        int duplicateCommits = 0;
 #endif
-                        if (!commits.Contains(change.commit))
+                        JsonClasses.VersionBuilds temp = JsonSerializer.Deserialize<JsonClasses.VersionBuilds>(wc.DownloadString($"https://papermc.io/api/v2/projects/paper/versions/{projectInfo.versions[^1]}/builds/{i}"));
+                        foreach (JsonClasses.Change change in temp.changes)
                         {
-                            commits.Add(change.commit);
-                        }
 #if DEBUG
-                        else
-                        {
-                            duplicateCommits++;
-                        }
+                            commitCount++;
 #endif
-                    }
+                            if (!commits.Contains(change.commit))
+                            {
+                                commits.Add(change.commit);
+                            }
+#if DEBUG
+                            else
+                            {
+                                duplicateCommits++;
+                            }
+#endif
+                        }
 
 #if DEBUG
-                    Console.WriteLine($"{commitCount} commit{(commitCount != 1 ? "s" : "")}, {duplicateCommits} duplicate{(duplicateCommits != 1 ? "s" : "")}.");
+                        Console.WriteLine($"{commitCount} commit{(commitCount != 1 ? "s" : "")}, {duplicateCommits} duplicate{(duplicateCommits != 1 ? "s" : "")}.");
 #endif
+                    }
                 }
 #if DEBUG
                 Console.WriteLine();
@@ -340,39 +347,58 @@ namespace PageSorter
                     Console.WriteLine($"-- {i} --");
                     buildLines[i].AddLast($"-- {i} --");
 
-                    JsonClasses.VersionBuilds temp;
-                    if (i == versionInfo.builds[^1])
+                    if (versionInfo.builds.Contains(i))
                     {
-                        temp = builds;
-                    }
-                    else
-                    {
-                        temp = JsonSerializer.Deserialize<JsonClasses.VersionBuilds>(wc.DownloadString($"https://papermc.io/api/v2/projects/paper/versions/{projectInfo.versions[^1]}/builds/{i}"));
-                    }
-
-                    int commitCount = 0;
-                    foreach (JsonClasses.Change change in temp.changes)
-                    {
-                        if (!commits.Contains(change.commit))
+                        JsonClasses.VersionBuilds temp;
+                        if (i == versionInfo.builds[^1])
                         {
-                            commits.Add(change.commit);
-
-                            commitCount++;
-                            buildLines[i].AddLast($@"https://github.com/PaperMC/Paper/commit/{change.commit}");
-
-                            List<string> messageLines = new List<string>(change.message.Split('\n'));
-                            messageLines.RemoveAll((s) => { return string.IsNullOrWhiteSpace(s); });
-
-                            foreach (string line in messageLines)
-                            {
-                                buildLines[i].AddLast(line);
-                            }
-
-                            buildLines[i].AddLast("");
+                            temp = builds;
                         }
-                    }
+                        else
+                        {
+                            temp = JsonSerializer.Deserialize<JsonClasses.VersionBuilds>(wc.DownloadString($"https://papermc.io/api/v2/projects/paper/versions/{projectInfo.versions[^1]}/builds/{i}"));
+                        }
 
-                    Console.WriteLine($"{commitCount} commit{(commitCount != 1 ? "s" : "")}.");
+                        int commitCount = 0;
+                        foreach (JsonClasses.Change change in temp.changes)
+                        {
+                            if (!commits.Contains(change.commit))
+                            {
+                                commits.Add(change.commit);
+
+                                commitCount++;
+                                buildLines[i].AddLast($@"https://github.com/PaperMC/Paper/commit/{change.commit}");
+
+                                List<string> messageLines = new List<string>(change.message.Split('\n'));
+                                for (int j = messageLines.Count - 1; j >= 0; j--)
+                                {
+                                    if (string.IsNullOrWhiteSpace(messageLines[j]))
+                                    {
+                                        messageLines.RemoveAt(j);
+                                    } else
+                                    {
+                                        break;
+                                    }
+                                }
+
+                                foreach (string line in messageLines)
+                                {
+                                    buildLines[i].AddLast(line);
+                                }
+
+                                buildLines[i].AddLast(""); 
+                            }
+                        }
+
+                        Console.WriteLine($"{commitCount} commit{(commitCount != 1 ? "s" : "")}.");
+                    } else
+                    {
+                        buildLines[i].AddLast("(Doesn't exist!)");
+                        Console.WriteLine("(Doesn't exist!)");
+
+                        buildLines[i].AddLast("");
+
+                    }
                 }
 
                 Console.WriteLine("Saving changelog.");
