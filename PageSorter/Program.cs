@@ -130,6 +130,14 @@ namespace PageSorter
 
                     argsList.Remove(next);
                 }
+                else if (string.Equals(first.Value, "-Reset", StringComparison.OrdinalIgnoreCase))
+                {
+                    Settings.Default.LastVersion = "";
+                    Settings.Default.LastBuild = 0;
+                    Settings.Default.Save();
+
+                    Console.WriteLine("Reset LastVersion and LastBuild.");
+                }
                 else
                 {
                     Console.WriteLine($"Bad argument: {first.Value}");
@@ -314,36 +322,41 @@ namespace PageSorter
 
                 if (oldBuild > versionInfo.builds[0])
                 {
-                    int r = oldBuild - versionInfo.builds[0];
 
-                    for (int i = oldBuild - r; i < oldBuild - r; i++)
+                    for (int i = oldBuild - 1; i > versionInfo.builds[0]; i--)
                     {
 #if DEBUG
                         Console.WriteLine($"[- {i} -]");
 
                         int commitCount = 0;
-                        int duplicateCommits = 0;
 #endif
-                        JsonClasses.VersionBuilds temp = JsonSerializer.Deserialize<JsonClasses.VersionBuilds>(wc.DownloadString($"https://papermc.io/api/v2/projects/paper/versions/{projectInfo.versions[^1]}/builds/{i}"));
-                        foreach (JsonClasses.Change change in temp.changes)
+
+                        if (versionInfo.builds.Contains(i))
                         {
-#if DEBUG
-                            commitCount++;
-#endif
-                            if (!commits.Contains(change.commit))
+                            JsonClasses.VersionBuilds temp = JsonSerializer.Deserialize<JsonClasses.VersionBuilds>(wc.DownloadString($"https://papermc.io/api/v2/projects/paper/versions/{projectInfo.versions[^1]}/builds/{i}"));
+                            foreach (JsonClasses.Change change in temp.changes)
                             {
-                                commits.Add(change.commit);
-                            }
 #if DEBUG
-                            else
-                            {
-                                duplicateCommits++;
-                            }
+                                commitCount++;
 #endif
-                        }
+                                if (!commits.Contains(change.commit))
+                                {
+                                    commits.Add(change.commit);
+                                }
+                            }
 
 #if DEBUG
-                        Console.WriteLine($"{commitCount} commit{(commitCount != 1 ? "s" : "")}, {duplicateCommits} duplicate{(duplicateCommits != 1 ? "s" : "")}.");
+                            Console.WriteLine($"{commitCount} commit{(commitCount != 1 ? "s" : "")}.");
+
+#endif
+
+                            break;
+                        }
+#if DEBUG
+                        else
+                        {
+                            Console.WriteLine("(Doesn't exist!)");
+                        }
 #endif
                     }
                 }
