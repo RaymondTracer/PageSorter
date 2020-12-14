@@ -7,6 +7,7 @@ using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Security.Policy;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -53,6 +54,17 @@ namespace PageSorter
 
         static void Main(string[] args)
         {
+            // Check for important arguments first.
+            foreach (string arg in args)
+            {
+                if (string.Equals(arg, "-Version", StringComparison.OrdinalIgnoreCase))
+                {
+                    Console.WriteLine($"Page Sorter v{Version} by Raymond Tracer");
+                    Environment.Exit(0);
+                }
+            }
+
+
             Console.Title = $"Page Sorter v{Version} by Raymond Tracer";
 
 #if DEBUG
@@ -139,17 +151,17 @@ namespace PageSorter
 
             Console.WriteLine("Getting latest version of Minecraft currently supported by PaperMC.");
             JsonClasses.ProjectInfo projectInfo = JsonSerializer.Deserialize<JsonClasses.ProjectInfo>(wc.DownloadString("https://papermc.io/api/v2/projects/paper"));
-            CheckForError(projectInfo);
+            ExitOnError(projectInfo);
             Console.WriteLine($"Found Verison: {projectInfo.versions[^1]}");
 
             Console.WriteLine("Getting latest build number.");
             JsonClasses.VersionInfo versionInfo = JsonSerializer.Deserialize<JsonClasses.VersionInfo>(wc.DownloadString($"https://papermc.io/api/v2/projects/paper/versions/{projectInfo.versions[^1]}"));
-            CheckForError(versionInfo);
+            ExitOnError(versionInfo);
             Console.WriteLine($"Found Build: {versionInfo.builds[^1]}");
 
             Console.WriteLine("Getting latest download filename.");
             JsonClasses.VersionBuilds builds = JsonSerializer.Deserialize<JsonClasses.VersionBuilds>(wc.DownloadString($"https://papermc.io/api/v2/projects/paper/versions/{projectInfo.versions[^1]}/builds/{versionInfo.builds[^1]}"));
-            CheckForError(builds);
+            ExitOnError(builds);
             Console.WriteLine($"Found Filename: {builds.downloads.application.name}");
 
             string downloadURL = $"https://papermc.io/api/v2/projects/paper/versions/{projectInfo.versions[^1]}/builds/{versionInfo.builds[^1]}/downloads/{builds.downloads.application.name}";
@@ -188,7 +200,6 @@ namespace PageSorter
                     Console.Write("Press any key to exit.");
                     Console.ReadKey(true);
                     Environment.Exit(0);
-
                 }
                 else if (keyInfo.Key != ConsoleKey.Y)
                 {
@@ -199,7 +210,7 @@ namespace PageSorter
                 }
 
                 swProgram.Start();
-                oldBuild = Math.Max(versionInfo.builds[0], versionInfo.builds[^1]);
+                oldBuild = versionInfo.builds[^1];
             }
             else if (Settings.Default.LastBuild > versionInfo.builds[^1])
             {
@@ -242,7 +253,7 @@ namespace PageSorter
             {
                 swDownload.Stop();
 
-                while (processingProgress) { }
+                while (ProcessingProgress) { }
                 Console.SetCursorPosition(0, cursorTop);
                 Console.WriteLine();
                 Console.WriteLine($"Download Competed! Took {swDownload.Elapsed.TotalSeconds} seconds.");
@@ -305,7 +316,7 @@ namespace PageSorter
                 {
                     int r = oldBuild - versionInfo.builds[0];
 
-                    for (int i = oldBuild - r; i < oldBuild; i++)
+                    for (int i = oldBuild - r; i < oldBuild - r; i++)
                     {
 #if DEBUG
                         Console.WriteLine($"[- {i} -]");
@@ -375,7 +386,8 @@ namespace PageSorter
                                     if (string.IsNullOrWhiteSpace(messageLines[j]))
                                     {
                                         messageLines.RemoveAt(j);
-                                    } else
+                                    }
+                                    else
                                     {
                                         break;
                                     }
@@ -386,12 +398,13 @@ namespace PageSorter
                                     buildLines[i].AddLast(line);
                                 }
 
-                                buildLines[i].AddLast(""); 
+                                buildLines[i].AddLast("");
                             }
                         }
 
                         Console.WriteLine($"{commitCount} commit{(commitCount != 1 ? "s" : "")}.");
-                    } else
+                    }
+                    else
                     {
                         buildLines[i].AddLast("(Doesn't exist!)");
                         Console.WriteLine("(Doesn't exist!)");
@@ -418,7 +431,7 @@ namespace PageSorter
                 Console.WriteLine($@"Can't find ""{cacheDirectory}\patched_{Settings.Default.LastVersion}.jar"".");
                 Console.WriteLine($@"Either something happened between running Paperclip and trying to move te file,");
                 Console.WriteLine($@"or Paperclip changed and Ray needs to update this program,");
-                Console.WriteLine($@"or you're running an out of date version of PageSorter.");
+                Console.WriteLine($@"or you're running an out of date version of Page Sorter.");
             }
 
             swProgram.Stop();
@@ -430,7 +443,7 @@ namespace PageSorter
 
         volatile static bool finishedDownloading = false;
 
-        static bool processingProgress => !Monitor.TryEnter(sync, 0);
+        static bool ProcessingProgress => !Monitor.TryEnter(sync, 0);
         static int progreesPercentage = -1;
         static long bytesRec = -1;
 
@@ -460,7 +473,7 @@ namespace PageSorter
             }
         }
 
-        public static void CheckForError<T>(T input) where T : JsonClasses.Error
+        public static void ExitOnError<T>(T input) where T : JsonClasses.Error
         {
             if (input.error != null)
             {
