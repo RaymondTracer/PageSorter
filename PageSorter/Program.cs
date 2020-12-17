@@ -1,6 +1,8 @@
 ﻿using PageSorter.Properties;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -11,6 +13,7 @@ using System.Security.Policy;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Xml;
 
 namespace PageSorter
@@ -21,8 +24,6 @@ namespace PageSorter
 
         static Stopwatch swProgram;
         static Stopwatch swDownload;
-        static int cursorTop = 0;
-        static long fileSize = 0;
 
         static string Version
         {
@@ -64,7 +65,6 @@ namespace PageSorter
                 }
             }
 
-
             Console.Title = $"Page Sorter v{Version} by Raymond Tracer";
 
 #if DEBUG
@@ -88,11 +88,18 @@ namespace PageSorter
 
                 Console.WriteLine("Reset LastVersion and LastBuild.");
             }
+            else if (consoleKeyInfo.Key == ConsoleKey.D)
+            {
+                Console.WriteLine("Test download");
+                Download("https://speed.hetzner.de/1GB.bin", Path.GetTempPath());
+                PauseOnDebug();
+                Environment.Exit(0);
+            }
 #endif
 
             swProgram = Stopwatch.StartNew();
 
-            LinkedList<string> argsList = new LinkedList<string>(args);
+            LinkedList<string> argsList = new(args);
             while (argsList.Count > 0)
             {
                 LinkedListNode<string> first = argsList.First;
@@ -150,12 +157,12 @@ namespace PageSorter
             string workDirectory = $"{rootDirectory}{Path.DirectorySeparatorChar}work";
             string cacheDirectory = $"{workDirectory}{Path.DirectorySeparatorChar}cache";
 
+            using WebClient wc = new();
+
             Console.WriteLine();
             Console.WriteLine($"Last Verison: {Settings.Default.LastVersion}");
             Console.WriteLine($"Last Build: {Settings.Default.LastBuild}");
             Console.WriteLine();
-
-            using WebClient wc = new WebClient();
 
             Console.WriteLine("Getting latest version of Minecraft currently supported by PaperMC.");
             JsonClasses.ProjectInfo projectInfo = JsonSerializer.Deserialize<JsonClasses.ProjectInfo>(wc.DownloadString("https://papermc.io/api/v2/projects/paper"));
@@ -244,43 +251,15 @@ namespace PageSorter
             Console.WriteLine();
             Console.WriteLine($"Downloading...");
 
-            wc.OpenRead(downloadURL);
-            fileSize = Convert.ToInt64(wc.ResponseHeaders["Content-Length"]);
-
-            Console.WriteLine($"0%   [                    ]");
-            Console.WriteLine($"0KB/{fileSize / 1000d}KB");
-            Console.WriteLine($"0KB/s");
-            cursorTop = Console.CursorTop;
-
-            wc.DownloadProgressChanged += (sender, args) =>
-            {
-                UpdateDownloadProgress(args);
-            };
-
-            wc.DownloadFileCompleted += (sender, args) =>
-            {
-                swDownload.Stop();
-
-                while (ProcessingProgress) { }
-                Console.SetCursorPosition(0, cursorTop);
-                Console.WriteLine();
-                Console.WriteLine($"Download Competed! Took {swDownload.Elapsed.TotalSeconds} seconds.");
-                finishedDownloading = true;
-            };
-
-            swDownload = Stopwatch.StartNew();
-            wc.DownloadFileAsync(new Uri(downloadURL), downloadFilePath);
-
-            while (!finishedDownloading) { }
+            Download(downloadURL, downloadFilePath);
 
             Directory.CreateDirectory(workDirectory);
             File.Move(downloadFilePath, $"{workDirectory}{Path.DirectorySeparatorChar}{builds.downloads.application.name}");
 
-            Console.WriteLine();
             Console.WriteLine("Running Paperclip.");
             Console.WriteLine();
 
-            Process java = new Process
+            Process java = new()
             {
                 StartInfo = new ProcessStartInfo
                 {
@@ -316,9 +295,9 @@ namespace PageSorter
 
                 Console.WriteLine($"Getting changelog for builds {oldBuild} to {Settings.Default.LastBuild}");
 
-                List<string> commits = new List<string>();
-                Dictionary<int, LinkedList<string>> buildLines = new Dictionary<int, LinkedList<string>>();
-                LinkedList<string> lines = new LinkedList<string>();
+                List<string> commits = new();
+                Dictionary<int, LinkedList<string>> buildLines = new();
+                LinkedList<string> lines = new();
 
                 if (oldBuild > versionInfo.builds[0])
                 {
@@ -393,7 +372,7 @@ namespace PageSorter
                                 commitCount++;
                                 buildLines[i].AddLast($@"https://github.com/PaperMC/Paper/commit/{change.commit}");
 
-                                List<string> messageLines = new List<string>(change.message.Split('\n'));
+                                List<string> messageLines = new(change.message.Split('\n'));
                                 for (int j = messageLines.Count - 1; j >= 0; j--)
                                 {
                                     if (string.IsNullOrWhiteSpace(messageLines[j]))
@@ -454,35 +433,151 @@ namespace PageSorter
             Console.ReadKey(true);
         }
 
-        volatile static bool finishedDownloading = false;
-
-        static bool ProcessingProgress => !Monitor.TryEnter(sync, 0);
-        static int progreesPercentage = -1;
-        static long bytesRec = -1;
-
-        static readonly object sync = new object();
-        static void UpdateDownloadProgress(DownloadProgressChangedEventArgs args)
+        private static bool IsDirectory(string path)
         {
-            if (args.BytesReceived > bytesRec)
+            return File.GetAttributes(path).HasFlag(FileAttributes.Directory);
+        }
+
+        private static void Download(string url, string filePath)
+        {
+            if (IsDirectory(filePath))
             {
-                progreesPercentage = args.ProgressPercentage;
-                bytesRec = args.BytesReceived;
+                filePath += $"{Path.DirectorySeparatorChar}{url.Split("/")[^1]}";
             }
 
-            lock (sync)
+#if DEBUG
+            Console.WriteLine($"URL: {url}");
+            Console.WriteLine($"Download path: {filePath}");
+#endif
+
+            using WebClient wcDebug = new();
+
+            Stream stream = null;
+            try
             {
+                stream = wcDebug.OpenRead(url);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error connecting to URL: {url}");
+                Console.WriteLine(ex);
+                Console.Write("Press any key to exit...");
+                Console.ReadKey(true);
+                Console.Write("\n");
+                Environment.Exit(1);
+            }
+
+            long fileSize = Convert.ToInt64(wcDebug.ResponseHeaders["Content-Length"]);
+
+            Console.WriteLine($"0%   [                    ]");
+            Console.WriteLine($"0KB/{fileSize / 1000d}KB");
+            Console.WriteLine($"0KB/s");
+            Console.WriteLine($"ETA: ");
+            int cursorTop = Console.CursorTop;
+
+            swDownload = Stopwatch.StartNew();
+            long bytesRecieved = 0;
+
+            byte[] data = new byte[fileSize];
+            int currentByte = 0;
+            Task.Run(() =>
+            {
+                while (stream.CanRead && (currentByte = stream.ReadByte()) != -1)
+                {
+                    data[bytesRecieved++] = (byte)currentByte;
+                }
+
+                if (!stream.CanRead)
+                {
+                    Console.WriteLine("Connection dropped.");
+                    Console.Write("Press any key to exit...");
+                    Console.ReadKey(true);
+                    Console.Write("\n");
+                    Environment.Exit(1);
+                }
+            });
+
+            int lastLine1Length = 0;
+            int lastLine2Length = 0;
+            int lastLine3Length = 0;
+            int lastLine4Length = 0;
+
+            while (currentByte != -1)
+            {
+                double progreesPercentage = (double)bytesRecieved / fileSize * 100d;
                 string spaces = progreesPercentage < 10 ? "   " : progreesPercentage < 100 ? "  " : " ";
 
                 int progFill = (int)Math.Floor(progreesPercentage / 5d);
-                string progFillString = new string('-', progFill);
+                string progFillString = new('-', progFill);
 
                 int progEmpty = 20 - progFill;
-                string progEmptyString = new string(' ', progEmpty);
+                string progEmptyString = new(' ', progEmpty);
 
-                Console.SetCursorPosition(0, cursorTop - 3);
-                Console.WriteLine($"{progreesPercentage}%{spaces}[{progFillString}{progEmptyString}]        ");
-                Console.WriteLine($"{bytesRec / 1000d:N}KB/{fileSize / 1000d:N}KB        ");
-                Console.WriteLine($"{bytesRec / 1000d / swDownload.Elapsed.TotalSeconds:N}KB/s        ");
+                Console.SetCursorPosition(0, cursorTop - 4);
+
+                string line1 = $"{progreesPercentage:0.00}%{spaces}[{progFillString}{progEmptyString}]";
+                int line1Length = line1.Length;
+                if (lastLine1Length > line1.Length) line1 += new string(' ', lastLine1Length - line1.Length);
+                lastLine1Length = line1Length;
+                Console.WriteLine(line1);
+
+                string line2 = $"{bytesRecieved / 1000d:N}KB/{fileSize / 1000d:N}KB";
+                int line2Length = line2.Length;
+                if (lastLine2Length > line2.Length) line2 += new string(' ', lastLine2Length - line2.Length);
+                lastLine2Length = line2Length;
+                Console.WriteLine(line2);
+
+                string line3 = $"{bytesRecieved / 1000d / swDownload.Elapsed.TotalSeconds:N}KB/s";
+                int line3Length = line3.Length;
+                if (lastLine3Length > line3.Length) line3 += new string(' ', lastLine3Length - line3.Length);
+                lastLine3Length = line3Length;
+                Console.WriteLine(line3);
+
+                TimeSpan eta = TimeSpan.FromSeconds(Math.Clamp((fileSize - bytesRecieved) / (bytesRecieved / swDownload.Elapsed.TotalSeconds), TimeSpan.MinValue.TotalSeconds, TimeSpan.MaxValue.TotalSeconds));
+                string line4 = $"ETA: {eta}";
+                int line4Length = line4.Length;
+                if (lastLine4Length > line4.Length) line4 += new string(' ', lastLine4Length - line4.Length);
+                lastLine4Length = line4Length;
+                Console.Write(line4);
+            }
+
+            swDownload.Stop();
+            Console.Write("\n");
+            Console.WriteLine();
+            Console.WriteLine($"Download Competed! Took {swDownload.Elapsed.TotalSeconds} seconds.");
+            
+            Console.WriteLine();
+            Console.WriteLine($"Saving file.");
+
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+            }
+
+            if (!ByteArrayToFile(filePath, data))
+            {
+                Console.Write("Press any key to exit...");
+                Console.ReadKey(true);
+                Console.Write("\n");
+                Environment.Exit(1);
+            }
+
+            data = null;
+        }
+
+        public static bool ByteArrayToFile(string filePath, byte[] byteArray)
+        {
+            try
+            {
+                using FileStream fs = new(filePath, FileMode.CreateNew, FileAccess.Write);
+                fs.Write(byteArray, 0, byteArray.Length);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error saving file: {filePath}");
+                Console.WriteLine(ex);
+                return false;
             }
         }
 
@@ -533,6 +628,15 @@ namespace PageSorter
             }
 
             return true;
+        }
+
+        public static void PauseOnDebug()
+        {
+#if DEBUG
+            Console.Write("Press any key to continue...");
+            Console.ReadKey(true);
+            Console.Write("\n");
+#endif
         }
     }
 }
