@@ -46,5 +46,29 @@ namespace PageSorter.Properties {
                 this["LastBuild"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string Debug_LastVersion {
+            get {
+                return ((string)(this["Debug_LastVersion"]));
+            }
+            set {
+                this["Debug_LastVersion"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0")]
+        public int Debug_LastBuild {
+            get {
+                return ((int)(this["Debug_LastBuild"]));
+            }
+            set {
+                this["Debug_LastBuild"] = value;
+            }
+        }
     }
 }

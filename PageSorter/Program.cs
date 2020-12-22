@@ -74,6 +74,8 @@ namespace PageSorter
             Console.WriteLine($"Arguments: {string.Join(" ", args)}");
             Console.WriteLine($"Current LastVerison: {Settings.Default.LastVersion}");
             Console.WriteLine($"Current LastBuild: {Settings.Default.LastBuild}");
+            Console.WriteLine($"Current Debug_LastVersion: {Settings.Default.Debug_LastVersion}");
+            Console.WriteLine($"Current Debug_LastBuild: {Settings.Default.Debug_LastBuild}");
 
             Console.WriteLine();
             Console.Write("Press any key to start...");
@@ -82,16 +84,16 @@ namespace PageSorter
 
             if (consoleKeyInfo.Key == ConsoleKey.R)
             {
-                Settings.Default.LastVersion = "";
-                Settings.Default.LastBuild = 0;
+                Settings.Default.Debug_LastVersion = "";
+                Settings.Default.Debug_LastBuild = 0;
                 Settings.Default.Save();
 
-                Console.WriteLine("Reset LastVersion and LastBuild.");
+                Console.WriteLine("Reset Debug_LastVersion and Debug_LastBuild.");
             }
             else if (consoleKeyInfo.Key == ConsoleKey.D)
             {
                 Console.WriteLine("Test download");
-                Download("https://speed.hetzner.de/1GB.bin", Path.GetTempPath());
+                Download("https://speed.hetzner.de/1GB.bin", Path.GetFullPath(@".\testing\TestDownload\"));
                 PauseOnDebug();
                 Environment.Exit(0);
             }
@@ -153,15 +155,25 @@ namespace PageSorter
                 argsList.Remove(first);
             }
 
+            rootDirectory += !Path.EndsInDirectorySeparator(rootDirectory) ? @"\" : "";
+
             // Probly best to initialize "global" local variables here.
             string workDirectory = $"{rootDirectory}{Path.DirectorySeparatorChar}work";
             string cacheDirectory = $"{workDirectory}{Path.DirectorySeparatorChar}cache";
 
+#if DEBUG
+            string LastVersion = "Debug_LastVersion";
+            string LastBuild = "Debug_LastBuild";
+#else
+            string LastVersion = "LastVersion";
+            string LastBuild = "LastBuild";
+#endif
+
             using WebClient wc = new();
 
             Console.WriteLine();
-            Console.WriteLine($"Last Verison: {Settings.Default.LastVersion}");
-            Console.WriteLine($"Last Build: {Settings.Default.LastBuild}");
+            Console.WriteLine($"Last Verison: {Settings.Default[LastVersion]}");
+            Console.WriteLine($"Last Build: {Settings.Default[LastBuild]}");
             Console.WriteLine();
 
             Console.WriteLine("Getting latest version of Minecraft currently supported by PaperMC.");
@@ -183,23 +195,23 @@ namespace PageSorter
             string downloadFilePath = $"{rootDirectory}{Path.DirectorySeparatorChar}{builds.downloads.application.name}";
 
             string oldVerInfo = string.Empty;
-            if (string.IsNullOrWhiteSpace(Settings.Default.LastVersion))
+            if (string.IsNullOrWhiteSpace((string)Settings.Default[LastVersion]))
             {
-                Settings.Default.LastVersion = projectInfo.versions[^1];
-                Settings.Default.LastBuild = Math.Max(versionInfo.builds[0], versionInfo.builds[^1] - 5);
+                Settings.Default[LastVersion] = projectInfo.versions[^1];
+                Settings.Default[LastBuild] = Math.Max(versionInfo.builds[0], versionInfo.builds[^1] - 5);
                 Settings.Default.Save();
             }
-            else if (projectInfo.versions[^1] != Settings.Default.LastVersion)
+            else if (!projectInfo.versions[^1].Equals((string)Settings.Default[LastVersion]))
             {
-                Settings.Default.LastVersion = projectInfo.versions[^1];
-                Settings.Default.LastBuild = 0;
+                Settings.Default[LastVersion] = projectInfo.versions[^1];
+                Settings.Default[LastBuild] = 0;
                 Settings.Default.Save();
 
-                oldVerInfo = $", Updated from {Settings.Default.LastVersion}";
+                oldVerInfo = $", Updated from {Settings.Default[LastVersion]}";
             }
 
             int oldBuild = 0;
-            if (Settings.Default.LastBuild == versionInfo.builds[^1])
+            if ((int)Settings.Default[LastBuild] == versionInfo.builds[^1])
             {
                 Console.WriteLine();
                 Console.WriteLine("You already have the latest version.");
@@ -227,16 +239,16 @@ namespace PageSorter
                 swProgram.Start();
                 oldBuild = versionInfo.builds[^1];
             }
-            else if (Settings.Default.LastBuild > versionInfo.builds[^1])
+            else if ((int)Settings.Default[LastBuild] > versionInfo.builds[^1])
             {
                 oldBuild = Math.Max(versionInfo.builds[0], versionInfo.builds[^1] - 5);
-                Settings.Default.LastBuild = versionInfo.builds[^1];
+                Settings.Default[LastBuild] = versionInfo.builds[^1];
                 Settings.Default.Save();
             }
             else
             {
-                oldBuild = Settings.Default.LastBuild;
-                Settings.Default.LastBuild = versionInfo.builds[^1];
+                oldBuild = (int)Settings.Default[LastBuild];
+                Settings.Default[LastBuild] = versionInfo.builds[^1];
                 Settings.Default.Save();
             }
 
@@ -282,18 +294,18 @@ namespace PageSorter
             }
 
             Console.WriteLine();
-            if (File.Exists($@"{cacheDirectory}\patched_{Settings.Default.LastVersion}.jar"))
+            if (File.Exists($@"{cacheDirectory}\patched_{Settings.Default[LastVersion]}.jar"))
             {
-                File.Move($@"{cacheDirectory}\patched_{Settings.Default.LastVersion}.jar", $@"{rootDirectory}\..\paperclip.jar", true);
+                File.Move($@"{cacheDirectory}\patched_{Settings.Default[LastVersion]}.jar", $@"{rootDirectory}\..\paperclip.jar", true);
 
-                if (Settings.Default.LastBuild - oldBuild == 0)
+                if ((int)Settings.Default[LastBuild] - oldBuild == 0)
                 {
                     oldBuild -= 5;
                 }
 
                 oldBuild = Math.Max(versionInfo.builds[0], oldBuild);
 
-                Console.WriteLine($"Getting changelog for builds {oldBuild} to {Settings.Default.LastBuild}");
+                Console.WriteLine($"Getting changelog for builds {oldBuild} to {Settings.Default[LastBuild]}");
 
                 List<string> commits = new();
                 Dictionary<int, LinkedList<string>> buildLines = new();
@@ -343,7 +355,7 @@ namespace PageSorter
                 Console.WriteLine();
 #endif
 
-                for (int i = oldBuild; i <= Settings.Default.LastBuild; i++)
+                for (int i = oldBuild; i <= (int)Settings.Default[LastBuild]; i++)
                 {
                     buildLines.Add(i, new LinkedList<string>());
 
@@ -408,7 +420,7 @@ namespace PageSorter
 
                 Console.WriteLine("Saving changelog.");
 
-                for (int i = Settings.Default.LastBuild; oldBuild <= i; i--)
+                for (int i = (int)Settings.Default[LastBuild]; oldBuild <= i; i--)
                 {
                     foreach (string line in buildLines[i])
                     {
@@ -420,7 +432,7 @@ namespace PageSorter
             }
             else
             {
-                Console.WriteLine($@"Can't find ""{cacheDirectory}\patched_{Settings.Default.LastVersion}.jar"".");
+                Console.WriteLine($@"Can't find ""{cacheDirectory}\patched_{Settings.Default[LastVersion]}.jar"".");
                 Console.WriteLine($@"Either something happened between running Paperclip and trying to move te file,");
                 Console.WriteLine($@"or Paperclip changed and Ray needs to update this program,");
                 Console.WriteLine($@"or you're running an out of date version of Page Sorter.");
@@ -433,16 +445,20 @@ namespace PageSorter
             Console.ReadKey(true);
         }
 
-        private static bool IsDirectory(string path)
-        {
-            return File.GetAttributes(path).HasFlag(FileAttributes.Directory);
-        }
-
         private static void Download(string url, string filePath)
         {
-            if (IsDirectory(filePath))
+            string fileName = Path.GetFileName(filePath);
+
+            if (string.IsNullOrWhiteSpace(fileName))
             {
-                filePath += $"{Path.DirectorySeparatorChar}{url.Split("/")[^1]}";
+                fileName = url.Split("/")[^1];
+
+                Directory.CreateDirectory(filePath);
+                filePath += $"{(Path.EndsInDirectorySeparator(filePath) ? "" : Path.DirectorySeparatorChar)}{fileName}";
+            }
+            else
+            {
+                Directory.CreateDirectory(string.Join("", filePath.Split(Path.DirectorySeparatorChar).SkipLast(1)));
             }
 
 #if DEBUG
@@ -469,10 +485,12 @@ namespace PageSorter
 
             long fileSize = Convert.ToInt64(wcDebug.ResponseHeaders["Content-Length"]);
 
-            Console.WriteLine($"0%   [                    ]");
-            Console.WriteLine($"0KB/{fileSize / 1000d}KB");
-            Console.WriteLine($"0KB/s");
-            Console.WriteLine($"ETA: ");
+            Console.WriteLine($"Progress:       0%   [                    ]");
+            Console.WriteLine($"Remaining:      0KB/{fileSize / 1000d}KB");
+            Console.WriteLine($"Download Speed: 0KB/s");
+            Console.WriteLine($"ETA:            00:00:00");
+            Console.WriteLine($"Time Elapsed:   00:00:00");
+
             int cursorTop = Console.CursorTop;
 
             swDownload = Stopwatch.StartNew();
@@ -497,13 +515,18 @@ namespace PageSorter
                 }
             });
 
-            int lastLine1Length = 0;
-            int lastLine2Length = 0;
-            int lastLine3Length = 0;
-            int lastLine4Length = 0;
+            bool downloadFinished = false;
 
-            while (currentByte != -1)
+            int lastProgressLength = 0;
+            int lastRemainingLength = 0;
+            int lastDownloadSpeedLength = 0;
+            int lastETALength = 0;
+            int lastTimeElapsedLength = 0;
+
+            while (!downloadFinished)
             {
+                downloadFinished = bytesRecieved >= fileSize;
+
                 double progreesPercentage = (double)bytesRecieved / fileSize * 100d;
                 string spaces = progreesPercentage < 10 ? "   " : progreesPercentage < 100 ? "  " : " ";
 
@@ -513,39 +536,45 @@ namespace PageSorter
                 int progEmpty = 20 - progFill;
                 string progEmptyString = new(' ', progEmpty);
 
-                Console.SetCursorPosition(0, cursorTop - 4);
+                Console.SetCursorPosition(0, cursorTop - 5);
 
-                string line1 = $"{progreesPercentage:0.00}%{spaces}[{progFillString}{progEmptyString}]";
-                int line1Length = line1.Length;
-                if (lastLine1Length > line1.Length) line1 += new string(' ', lastLine1Length - line1.Length);
-                lastLine1Length = line1Length;
-                Console.WriteLine(line1);
+                string progress = $"Progress:       {progreesPercentage:0.00}%{spaces}[{progFillString}{progEmptyString}]";
+                int line1Length = progress.Length;
+                if (lastProgressLength > progress.Length) progress += new string(' ', Math.Max(0, lastProgressLength - progress.Length));
+                lastProgressLength = line1Length;
+                Console.WriteLine(progress);
 
-                string line2 = $"{bytesRecieved / 1000d:N}KB/{fileSize / 1000d:N}KB";
-                int line2Length = line2.Length;
-                if (lastLine2Length > line2.Length) line2 += new string(' ', lastLine2Length - line2.Length);
-                lastLine2Length = line2Length;
-                Console.WriteLine(line2);
+                string remaining = $"Remaining:      {bytesRecieved / 1000d:N}KB/{fileSize / 1000d:N}KB";
+                int remainingLength = remaining.Length;
+                if (lastRemainingLength > remaining.Length) remaining += new string(' ', Math.Max(0, lastRemainingLength - remaining.Length));
+                lastRemainingLength = remainingLength;
+                Console.WriteLine(remaining);
 
-                string line3 = $"{bytesRecieved / 1000d / swDownload.Elapsed.TotalSeconds:N}KB/s";
-                int line3Length = line3.Length;
-                if (lastLine3Length > line3.Length) line3 += new string(' ', lastLine3Length - line3.Length);
-                lastLine3Length = line3Length;
-                Console.WriteLine(line3);
+                string dlSpeed = $"Download Speed: {bytesRecieved / 1000d / swDownload.Elapsed.TotalSeconds:N}KB/s";
+                int dlSpeedLength = dlSpeed.Length;
+                if (lastDownloadSpeedLength > dlSpeed.Length) dlSpeed += new string(' ', Math.Max(0, lastDownloadSpeedLength - dlSpeed.Length));
+                lastDownloadSpeedLength = dlSpeedLength;
+                Console.WriteLine(dlSpeed);
 
                 TimeSpan eta = TimeSpan.FromSeconds(Math.Clamp((fileSize - bytesRecieved) / (bytesRecieved / swDownload.Elapsed.TotalSeconds), TimeSpan.MinValue.TotalSeconds, TimeSpan.MaxValue.TotalSeconds));
-                string line4 = $"ETA: {eta}";
-                int line4Length = line4.Length;
-                if (lastLine4Length > line4.Length) line4 += new string(' ', lastLine4Length - line4.Length);
-                lastLine4Length = line4Length;
-                Console.Write(line4);
+                string etaLine = $"ETA:            {eta}";
+                int etaLength = etaLine.Length;
+                if (lastETALength > etaLine.Length) etaLine += new string(' ', Math.Max(0, lastETALength - etaLine.Length));
+                lastETALength = etaLength;
+                Console.WriteLine(etaLine);
+
+                string timeElapsed = $"Time Elapsed:   {swDownload.Elapsed}";
+                int teLength = timeElapsed.Length;
+                if (lastETALength > timeElapsed.Length) timeElapsed += new string(' ', Math.Max(0, lastTimeElapsedLength - timeElapsed.Length));
+                lastTimeElapsedLength = teLength;
+                Console.Write(timeElapsed);
             }
 
             swDownload.Stop();
             Console.Write("\n");
             Console.WriteLine();
             Console.WriteLine($"Download Competed! Took {swDownload.Elapsed.TotalSeconds} seconds.");
-            
+
             Console.WriteLine();
             Console.WriteLine($"Saving file.");
 
