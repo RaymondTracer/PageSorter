@@ -25,6 +25,18 @@ namespace PageSorter
         static Stopwatch swProgram;
         static Stopwatch swDownload;
 
+        static bool IsDebugBuild
+        {
+            get
+            {
+#if DEBUG
+                return true;
+#else
+                return false;
+#endif
+            }
+        }
+
         static string Version
         {
             get
@@ -45,9 +57,10 @@ namespace PageSorter
                     temp = $"{assemblyVersionSplit[0]}.{assemblyVersionSplit[1]}";
                 }
 
-#if DEBUG
-                temp += " [DEBUG]";
-#endif
+                if (IsDebugBuild)
+                {
+                    temp += " [DEBUG]";
+                }
 
                 return temp;
             }
@@ -67,37 +80,38 @@ namespace PageSorter
 
             Console.Title = $"Page Sorter v{Version} by Raymond Tracer";
 
-#if DEBUG
-            Console.WriteLine("[DEBUG MODE ENABLED]");
-            Console.WriteLine();
-
-            Console.WriteLine($"Arguments: {string.Join(" ", args)}");
-            Console.WriteLine($"Current LastVerison: {Settings.Default.LastVersion}");
-            Console.WriteLine($"Current LastBuild: {Settings.Default.LastBuild}");
-            Console.WriteLine($"Current Debug_LastVersion: {Settings.Default.Debug_LastVersion}");
-            Console.WriteLine($"Current Debug_LastBuild: {Settings.Default.Debug_LastBuild}");
-
-            Console.WriteLine();
-            Console.Write("Press any key to start...");
-            ConsoleKeyInfo consoleKeyInfo = Console.ReadKey();
-            Console.Write("\n");
-
-            if (consoleKeyInfo.Key == ConsoleKey.R)
+            if (IsDebugBuild)
             {
-                Settings.Default.Debug_LastVersion = "";
-                Settings.Default.Debug_LastBuild = 0;
-                Settings.Default.Save();
+                Console.WriteLine("[DEBUG MODE ENABLED]");
+                Console.WriteLine();
 
-                Console.WriteLine("Reset Debug_LastVersion and Debug_LastBuild.");
+                Console.WriteLine($"Arguments: {string.Join(" ", args)}");
+                Console.WriteLine($"Current LastVerison: {Settings.Default.LastVersion}");
+                Console.WriteLine($"Current LastBuild: {Settings.Default.LastBuild}");
+                Console.WriteLine($"Current Debug_LastVersion: {Settings.Default.Debug_LastVersion}");
+                Console.WriteLine($"Current Debug_LastBuild: {Settings.Default.Debug_LastBuild}");
+
+                Console.WriteLine();
+                Console.Write("Press any key to start...");
+                ConsoleKeyInfo consoleKeyInfo = Console.ReadKey();
+                Console.Write("\n");
+
+                if (consoleKeyInfo.Key == ConsoleKey.R)
+                {
+                    Settings.Default.Debug_LastVersion = "";
+                    Settings.Default.Debug_LastBuild = 0;
+                    Settings.Default.Save();
+
+                    Console.WriteLine("Reset Debug_LastVersion and Debug_LastBuild.");
+                }
+                else if (consoleKeyInfo.Key == ConsoleKey.D)
+                {
+                    Console.WriteLine("Test download");
+                    Download("https://speed.hetzner.de/1GB.bin", Path.GetFullPath(@".\testing\TestDownload\"));
+                    PauseOnDebug();
+                    Environment.Exit(0);
+                }
             }
-            else if (consoleKeyInfo.Key == ConsoleKey.D)
-            {
-                Console.WriteLine("Test download");
-                Download("https://speed.hetzner.de/1GB.bin", Path.GetFullPath(@".\testing\TestDownload\"));
-                PauseOnDebug();
-                Environment.Exit(0);
-            }
-#endif
 
             swProgram = Stopwatch.StartNew();
 
@@ -106,7 +120,7 @@ namespace PageSorter
             {
                 LinkedListNode<string> first = argsList.First;
 
-                if (string.Equals(first.Value, "-RootDirectory", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(first.Value, "--RootDirectory", StringComparison.CurrentCultureIgnoreCase))
                 {
                     LinkedListNode<string> next = first.Next;
 
@@ -117,7 +131,7 @@ namespace PageSorter
 
                     argsList.Remove(next);
                 }
-                else if (string.Equals(first.Value, "-LastVersion", StringComparison.OrdinalIgnoreCase))
+                else if (string.Equals(first.Value, "--LastVersion", StringComparison.CurrentCultureIgnoreCase))
                 {
                     LinkedListNode<string> next = first.Next;
 
@@ -128,7 +142,7 @@ namespace PageSorter
 
                     argsList.Remove(next);
                 }
-                else if (string.Equals(first.Value, "-LastBuild", StringComparison.OrdinalIgnoreCase))
+                else if (string.Equals(first.Value, "--LastBuild", StringComparison.CurrentCultureIgnoreCase))
                 {
                     LinkedListNode<string> next = first.Next;
 
@@ -139,7 +153,7 @@ namespace PageSorter
 
                     argsList.Remove(next);
                 }
-                else if (string.Equals(first.Value, "-Reset", StringComparison.OrdinalIgnoreCase))
+                else if (string.Equals(first.Value, "--Reset", StringComparison.CurrentCultureIgnoreCase))
                 {
                     Settings.Default.LastVersion = "";
                     Settings.Default.LastBuild = 0;
@@ -161,13 +175,8 @@ namespace PageSorter
             string workDirectory = $"{rootDirectory}{Path.DirectorySeparatorChar}work";
             string cacheDirectory = $"{workDirectory}{Path.DirectorySeparatorChar}cache";
 
-#if DEBUG
-            string LastVersion = "Debug_LastVersion";
-            string LastBuild = "Debug_LastBuild";
-#else
-            string LastVersion = "LastVersion";
-            string LastBuild = "LastBuild";
-#endif
+            string LastVersion = IsDebugBuild ? "Debug_LastVersion" : "LastVersion";
+            string LastBuild = IsDebugBuild ? "Debug_LastBuild" : "LastBuild";
 
             using WebClient wc = new();
 
@@ -477,9 +486,8 @@ namespace PageSorter
             {
                 Console.WriteLine($"Error connecting to URL: {url}");
                 Console.WriteLine(ex);
-                Console.Write("Press any key to exit...");
-                Console.ReadKey(true);
-                Console.Write("\n");
+
+                Pause("Press any key to exit...");
                 Environment.Exit(1);
             }
 
@@ -585,9 +593,7 @@ namespace PageSorter
 
             if (!ByteArrayToFile(filePath, data))
             {
-                Console.Write("Press any key to exit...");
-                Console.ReadKey(true);
-                Console.Write("\n");
+                Pause("Press any key to exit...");
                 Environment.Exit(1);
             }
 
@@ -621,6 +627,13 @@ namespace PageSorter
                 Console.ReadKey(true);
                 Environment.Exit(0);
             }
+        }
+
+        public static void Pause(string pauseMessage)
+        {
+            Console.Write(pauseMessage);
+            Console.ReadKey(true);
+            Console.Write("\n");
         }
 
         public static void DeleteDirectoryRecursively(string targetDir)
@@ -659,13 +672,12 @@ namespace PageSorter
             return true;
         }
 
+        [Conditional("DEBUG")]
         public static void PauseOnDebug()
         {
-#if DEBUG
             Console.Write("Press any key to continue...");
             Console.ReadKey(true);
             Console.Write("\n");
-#endif
         }
     }
 }
