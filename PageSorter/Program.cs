@@ -313,7 +313,7 @@ namespace PageSorter
 
                 if (keyInfo.Key == ConsoleKey.Enter || keyInfo.Key == ConsoleKey.N)
                 {
-                    Console.Write("Press any key to exit.");
+                    Console.Write("Press any key to exit...");
                     Console.ReadKey(true);
                     Environment.Exit(0);
                 }
@@ -576,8 +576,8 @@ namespace PageSorter
             long fileSize = Convert.ToInt64(wcDebug.ResponseHeaders["Content-Length"]);
 
             Console.WriteLine($"Progress:       0%   [                    ]");
-            Console.WriteLine($"Remaining:      0KB/{fileSize / 1000d}KB");
-            Console.WriteLine($"Download Speed: 0KB/s");
+            Console.WriteLine($"Remaining:      0 KiB/{fileSize / 1024d} KiB");
+            Console.WriteLine($"Download Speed: 0 KiB/s");
             Console.WriteLine($"ETA:            00:00:00");
             Console.WriteLine($"Time Elapsed:   00:00:00");
 
@@ -632,13 +632,13 @@ namespace PageSorter
                 lastProgressLength = line1Length;
                 Console.WriteLine(progress);
 
-                string remaining = $"Remaining:      {bytesRecieved / 1000d:N}KB/{fileSize / 1000d:N}KB";
+                string remaining = $"Remaining:      {bytesRecieved / 1024d:N} KiB/{fileSize / 1024d:N} KiB";
                 int remainingLength = remaining.Length;
                 if (lastRemainingLength > remaining.Length) remaining += new string(' ', Math.Max(0, lastRemainingLength - remaining.Length));
                 lastRemainingLength = remainingLength;
                 Console.WriteLine(remaining);
 
-                string dlSpeed = $"Download Speed: {bytesRecieved / 1000d / swDownload.Elapsed.TotalSeconds:N}KB/s";
+                string dlSpeed = $"Download Speed: {bytesRecieved / 1024d / swDownload.Elapsed.TotalSeconds:N} KiB/s";
                 int dlSpeedLength = dlSpeed.Length;
                 if (lastDownloadSpeedLength > dlSpeed.Length) dlSpeed += new string(' ', Math.Max(0, lastDownloadSpeedLength - dlSpeed.Length));
                 lastDownloadSpeedLength = dlSpeedLength;
@@ -661,7 +661,7 @@ namespace PageSorter
             swDownload.Stop();
             Console.Write("\n");
             Console.WriteLine();
-            Console.WriteLine($"Download Competed! Took {swDownload.Elapsed.TotalSeconds} seconds.");
+            Console.WriteLine($"Download Competed!");
 
             Console.WriteLine();
             Console.WriteLine($"Saving file.");
