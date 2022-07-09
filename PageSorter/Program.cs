@@ -1,26 +1,21 @@
 ﻿using PageSorter.Properties;
+
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Security.Policy;
 using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Threading;
 using System.Threading.Tasks;
-using System.Xml;
 
 namespace PageSorter
 {
     class Program
     {
         static string rootDirectory = AppDomain.CurrentDomain.BaseDirectory;
+        static string JavaPath;
 
         static Stopwatch swProgram;
         static Stopwatch swDownload;
@@ -71,7 +66,7 @@ namespace PageSorter
             // Check for important arguments first.
             foreach (string arg in args)
             {
-                if (string.Equals(arg, "-Version", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(arg, "--Version", StringComparison.OrdinalIgnoreCase))
                 {
                     Console.WriteLine($"Page Sorter v{Version} by Raymond Tracer");
                     Environment.Exit(0);
@@ -90,10 +85,15 @@ namespace PageSorter
                 Console.WriteLine($"Current LastBuild: {Settings.Default.LastBuild}");
                 Console.WriteLine($"Current Debug_LastVersion: {Settings.Default.Debug_LastVersion}");
                 Console.WriteLine($"Current Debug_LastBuild: {Settings.Default.Debug_LastBuild}");
+                Console.WriteLine();
+
+                Console.WriteLine("R to reset debug variables");
+                Console.WriteLine("D to start a test download");
+                Console.WriteLine("V to get Java version");
 
                 Console.WriteLine();
                 Console.Write("Press any key to start...");
-                ConsoleKeyInfo consoleKeyInfo = Console.ReadKey();
+                ConsoleKeyInfo consoleKeyInfo = Console.ReadKey(true);
                 Console.Write("\n");
 
                 if (consoleKeyInfo.Key == ConsoleKey.R)
@@ -111,6 +111,86 @@ namespace PageSorter
                     PauseOnDebug();
                     Environment.Exit(0);
                 }
+                else if (consoleKeyInfo.Key == ConsoleKey.V)
+                {
+                    Console.WriteLine();
+
+                    string[] paths_debug = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.Machine).Split(";");
+
+                    int i = 0;
+                    foreach (string s in paths_debug)
+                    {
+                        if (File.Exists($@"{s}\java.exe"))
+                        {
+                            Console.WriteLine($@"{s}\java.exe");
+                            Process javaVer = new()
+                            {
+                                StartInfo = new ProcessStartInfo
+                                {
+                                    FileName = $@"{paths_debug[i]}\java.exe",
+                                    Arguments = $"-version",
+                                    RedirectStandardOutput = true
+                                }
+                            };
+
+                            javaVer.Start();
+
+
+
+                            StreamReader stdout = javaVer.StandardOutput;
+
+                            while (!stdout.EndOfStream)
+                            {
+                            }
+                                string line = stdout.ReadLine();
+
+
+                                string[] words = line.Split(" ");
+                                if (words.Length > 0)
+                                {
+                                    if (words.Length == 3)
+                                    {
+                                        Console.WriteLine(words[2]);
+                                    }
+                                    else if (words.Length == 4)
+                                    {
+                                        Console.WriteLine($"{words[2]} / {words[3]}");
+                                    }
+                                }
+                            
+
+                            javaVer.WaitForExit();
+
+                            Console.WriteLine();
+                        }
+
+                        i++;
+                    }
+
+                    Console.WriteLine();
+
+
+
+                    PauseOnDebug();
+                    Environment.Exit(0);
+                }
+            }
+
+            string[] paths = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.Machine).Split(";");
+            foreach (string s in paths)
+            {
+                if (File.Exists($@"{s}\java.exe"))
+                {
+                    JavaPath = $@"{s}\java.exe";
+                    break;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(JavaPath))
+            {
+                Console.WriteLine("Java not found.");
+                Pause("Press any key to exit...");
+                Environment.Exit(0);
             }
 
             swProgram = Stopwatch.StartNew();
@@ -173,7 +253,7 @@ namespace PageSorter
 
             // Probly best to initialize "global" local variables here.
             string workDirectory = $"{rootDirectory}{Path.DirectorySeparatorChar}work";
-            string cacheDirectory = $"{workDirectory}{Path.DirectorySeparatorChar}cache";
+            string versionsDirectory = $"{workDirectory}{Path.DirectorySeparatorChar}versions";
 
             string LastVersion = IsDebugBuild ? "Debug_LastVersion" : "LastVersion";
             string LastBuild = IsDebugBuild ? "Debug_LastBuild" : "LastBuild";
@@ -284,7 +364,7 @@ namespace PageSorter
             {
                 StartInfo = new ProcessStartInfo
                 {
-                    FileName = "java",
+                    FileName = JavaPath,
                     Arguments = $"-jar {workDirectory}{Path.DirectorySeparatorChar}{builds.downloads.application.name}",
                     WorkingDirectory = workDirectory
                 }
@@ -303,9 +383,11 @@ namespace PageSorter
             }
 
             Console.WriteLine();
-            if (File.Exists($@"{cacheDirectory}\patched_{Settings.Default[LastVersion]}.jar"))
+
+            string filename = $"paper-{Settings.Default[LastVersion]}.jar";
+            if (File.Exists($@"{versionsDirectory}\{Settings.Default[LastVersion]}\{filename}"))
             {
-                File.Move($@"{cacheDirectory}\patched_{Settings.Default[LastVersion]}.jar", $@"{rootDirectory}\..\paperclip.jar", true);
+                File.Move($@"{versionsDirectory}\{Settings.Default[LastVersion]}\{filename}", $@"{rootDirectory}\..\paperclip.jar", true);
 
                 if ((int)Settings.Default[LastBuild] - oldBuild == 0)
                 {
@@ -441,7 +523,7 @@ namespace PageSorter
             }
             else
             {
-                Console.WriteLine($@"Can't find ""{cacheDirectory}\patched_{Settings.Default[LastVersion]}.jar"".");
+                Console.WriteLine($@"Can't find ""{versionsDirectory}\{Settings.Default[LastVersion]}\{filename}"".");
                 Console.WriteLine($@"Either something happened between running Paperclip and trying to move te file,");
                 Console.WriteLine($@"or Paperclip changed and Ray needs to update this program,");
                 Console.WriteLine($@"or you're running an out of date version of Page Sorter.");
@@ -450,7 +532,7 @@ namespace PageSorter
             swProgram.Stop();
             Console.WriteLine();
             Console.WriteLine($"Done, took {swProgram.Elapsed.TotalSeconds} seconds.");
-            Console.Write("Press any key to exit.");
+            Console.Write("Press any key to exit...");
             Console.ReadKey(true);
         }
 
@@ -467,7 +549,7 @@ namespace PageSorter
             }
             else
             {
-                Directory.CreateDirectory(string.Join("", filePath.Split(Path.DirectorySeparatorChar).SkipLast(1)));
+                Directory.CreateDirectory(string.Join(Path.DirectorySeparatorChar, filePath.Split(Path.DirectorySeparatorChar).SkipLast(1)));
             }
 
 #if DEBUG
@@ -516,9 +598,7 @@ namespace PageSorter
                 if (!stream.CanRead)
                 {
                     Console.WriteLine("Connection dropped.");
-                    Console.Write("Press any key to exit...");
-                    Console.ReadKey(true);
-                    Console.Write("\n");
+                    Pause("Press any key to exit...");
                     Environment.Exit(1);
                 }
             });
@@ -623,7 +703,7 @@ namespace PageSorter
                 Console.WriteLine($"Error: {input.error}");
                 Console.WriteLine();
 
-                Console.Write("Press any key to exit.");
+                Console.Write("Press any key to exit...");
                 Console.ReadKey(true);
                 Environment.Exit(0);
             }
@@ -665,8 +745,12 @@ namespace PageSorter
                 using Stream stream = new FileStream(targetFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
                 return false;
             }
-            catch
+            catch (Exception e)
             {
+                if (e is FileNotFoundException)
+                {
+                    return false;
+                }
             }
 
             return true;

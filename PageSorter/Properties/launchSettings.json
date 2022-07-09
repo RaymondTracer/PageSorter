@@ -2,7 +2,7 @@
   "profiles": {
     "PageSorter": {
       "commandName": "Project",
-      "commandLineArgs": "-RootDirectory .\\testing\\PageSorter"
+      "commandLineArgs": "--RootDirectory .\\testing\\PageSorter"
     }
   }
 }
