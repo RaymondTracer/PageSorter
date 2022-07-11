@@ -1,0 +1,3 @@
+# PageSorter
+
+PaperMC updater.
